@@ -84,6 +84,106 @@ object StoragePermissionHelper {
     }
 
     /**
+     * Returns an array of storage or media permissions that should be requested via runtime dialog.
+     */
+    fun getRequiredStoragePermissions(): Array<String> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.READ_MEDIA_AUDIO,
+                Manifest.permission.READ_MEDIA_IMAGES
+            )
+        } else {
+            arrayOf(
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            )
+        }
+    }
+
+    /**
+     * Launches the All Files Access system settings screen for the app.
+     */
+    fun requestAllFilesAccess(context: Context) {
+        try {
+            val intent = createManageAllFilesIntent(context)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            val appDetailsIntent = createAppDetailsSettingsIntent(context)
+            context.startActivity(appDetailsIntent)
+        }
+    }
+
+    data class FileOperationResult(
+        val success: Boolean,
+        val path: String,
+        val message: String
+    )
+
+    /**
+     * Explicitly tests Reading, Writing, Modifying, and Saving a test file in the given directory
+     * (e.g. /sdcard/Movies or /storage/emulated/0/Movies).
+     */
+    fun testWriteAndSaveFile(targetDir: String = "/sdcard/Movies"): FileOperationResult {
+        return try {
+            val dir = File(targetDir)
+            val actualDir = if (dir.exists()) {
+                dir
+            } else {
+                val alt = File("/storage/emulated/0/${targetDir.removePrefix("/sdcard/").removePrefix("/storage/")}")
+                if (!alt.exists()) {
+                    alt.mkdirs()
+                }
+                alt
+            }
+
+            if (!actualDir.exists()) {
+                val created = actualDir.mkdirs()
+                if (!created && !actualDir.exists()) {
+                    return FileOperationResult(
+                        success = false,
+                        path = targetDir,
+                        message = "ไม่สามารถสร้างไดเรกทอรี $targetDir ได้ (ต้องการสิทธิ์ All Files Access)"
+                    )
+                }
+            }
+
+            val testFile = File(actualDir, ".runtermux_permission_test_${System.currentTimeMillis()}.tmp")
+            // 1. Write / Save
+            val content = "RunTermux permission test created at: ${java.util.Date()}\nStatus: Read/Write/Modify/Save OK"
+            testFile.writeText(content)
+
+            // 2. Read verification
+            val readContent = testFile.readText()
+            if (readContent != content) {
+                return FileOperationResult(
+                    success = false,
+                    path = testFile.absolutePath,
+                    message = "เขียนไฟล์ได้แต่อ่านเนื้อหาไม่ตรงกัน"
+                )
+            }
+
+            // 3. Modify
+            testFile.appendText("\n[Appended line for modify check]")
+
+            // 4. Cleanup
+            val deleted = testFile.delete()
+
+            FileOperationResult(
+                success = true,
+                path = actualDir.absolutePath,
+                message = "สำเร็จ! แอพมีสิทธิ์ อ่าน (Read), เขียน (Write), แก้ไข (Modify), และบันทึก (Save) ในโฟลเดอร์นี้ได้อย่างสมบูรณ์"
+            )
+        } catch (e: Exception) {
+            FileOperationResult(
+                success = false,
+                path = targetDir,
+                message = "ข้อผิดพลาดสิทธิ์: ${e.message} (กรุณาเปิดสิทธิ์ All Files Access)"
+            )
+        }
+    }
+
+    /**
      * Creates an Intent to open the All Files Access settings page for this app.
      */
     fun createManageAllFilesIntent(context: Context): Intent {

@@ -46,11 +46,13 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.QuestionAnswer
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Warning
+import com.example.ui.components.StoragePermissionBanner
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -99,6 +101,7 @@ import com.example.ui.components.RenameFileDialog
 import com.example.ui.components.RunResultBottomSheet
 import com.example.ui.components.SettingsDialog
 import com.example.utils.SafUtils
+import com.example.utils.StoragePermissionHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,6 +113,7 @@ fun TermuxScriptsScreen(
     val context = LocalContext.current
 
     val storageState by viewModel.storageState.collectAsStateWithLifecycle()
+    val storagePermissionInfo by viewModel.storagePermissionInfo.collectAsStateWithLifecycle()
     val scripts by viewModel.safScripts.collectAsStateWithLifecycle()
     val runState by viewModel.scriptRunState.collectAsStateWithLifecycle()
     val allLogs by viewModel.allLogs.collectAsStateWithLifecycle()
@@ -255,10 +259,19 @@ fun TermuxScriptsScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Storage Permission Alert Banner
+            item {
+                StoragePermissionBanner(
+                    storageInfo = storagePermissionInfo,
+                    onPermissionUpdated = { viewModel.refreshStoragePermissions() }
+                )
+            }
+
             // Hardware Status & Xiaomi 13 Pro Header Card (Harmonized with Shortcuts tab)
             item {
                 SafHardwareHeaderCard(
                     state = storageState,
+                    storagePermissionInfo = storagePermissionInfo,
                     isTermuxDetected = isTermuxDetected,
                     onConnectClick = { openDocumentTreeLauncher.launch(null) },
                     onChangeFolderClick = { openDocumentTreeLauncher.launch(null) },
@@ -574,6 +587,7 @@ fun TermuxScriptsScreen(
 @Composable
 private fun SafHardwareHeaderCard(
     state: TermuxStorageState,
+    storagePermissionInfo: StoragePermissionHelper.StoragePermissionInfo,
     isTermuxDetected: Boolean,
     onConnectClick: () -> Unit,
     onChangeFolderClick: () -> Unit,
@@ -639,6 +653,47 @@ private fun SafHardwareHeaderCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Storage Permissions Status Badge (e.g. /sdcard/Movies/ access)
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (storagePermissionInfo.hasAllFilesAccess) Color(0xFF064E3B).copy(alpha = 0.4f) else Color(0xFF1E293B),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            imageVector = Icons.Default.Storage,
+                            contentDescription = null,
+                            tint = if (storagePermissionInfo.hasAllFilesAccess) Color(0xFF34D399) else Color(0xFF38BDF8),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (storagePermissionInfo.hasAllFilesAccess)
+                                "สิทธิ์เข้าถึงอุปกรณ์ (/sdcard/Movies): พร้อมใช้งาน"
+                            else
+                                "สิทธิ์ไฟล์เครื่อง: แตะการตั้งค่าเพื่อเปิด All Files",
+                            fontSize = 11.sp,
+                            color = if (storagePermissionInfo.hasAllFilesAccess) Color(0xFF34D399) else Color(0xFF94A3B8),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Text(
+                        text = if (storagePermissionInfo.hasAllFilesAccess) "✅ All Files" else "⚙️ ตั้งค่า",
+                        fontSize = 10.sp,
+                        color = if (storagePermissionInfo.hasAllFilesAccess) Color(0xFF34D399) else Color(0xFF38BDF8),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { onOpenSettingsClick() }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))

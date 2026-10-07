@@ -21,6 +21,7 @@ import com.example.service.TermuxRunner
 import com.example.termux.ScriptRunState
 import com.example.termux.TermuxScriptRunner
 import com.example.widget.TermuxAppWidgetProvider
+import com.example.utils.StoragePermissionHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +51,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val settings: StateFlow<AppSettings> = repository.settings
     val allLogs: StateFlow<List<ExecutionLog>> = repository.allLogs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Storage Permission & Directory Access State
+    private val _storagePermissionInfo = MutableStateFlow(StoragePermissionHelper.getStoragePermissionInfo(application))
+    val storagePermissionInfo = _storagePermissionInfo.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
@@ -275,6 +280,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun inspectBackup(uri: Uri): BackupPayload? {
         val json = backupManager.readFromUri(uri) ?: return null
         return backupManager.parseBackupJson(json)
+    }
+
+    fun refreshStoragePermissions() {
+        _storagePermissionInfo.value = StoragePermissionHelper.getStoragePermissionInfo(getApplication())
+    }
+
+    fun testStoragePath(path: String): StoragePermissionHelper.StorageDirectoryStatus {
+        val result = StoragePermissionHelper.testDirectoryAccess(path)
+        refreshStoragePermissions()
+        return result
+    }
+
+    fun testWriteAndSaveFile(targetDir: String): StoragePermissionHelper.FileOperationResult {
+        val result = StoragePermissionHelper.testWriteAndSaveFile(targetDir)
+        refreshStoragePermissions()
+        return result
     }
 
     fun performRestore(payload: BackupPayload, mode: RestoreMode, onResult: (Boolean, String) -> Unit) {

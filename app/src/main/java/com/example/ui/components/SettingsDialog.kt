@@ -1,5 +1,9 @@
 package com.example.ui.components
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,17 +20,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -45,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.model.AppSettings
+import com.example.utils.StoragePermissionHelper
 
 @Composable
 fun SettingsDialog(
@@ -62,6 +75,7 @@ fun SettingsDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var shortcutsDir by remember { mutableStateOf(currentSettings.termuxShortcutsDir) }
     var workDir by remember { mutableStateOf(currentSettings.defaultWorkDir) }
     var notifyFinish by remember { mutableStateOf(currentSettings.notifyOnFinish) }
@@ -70,6 +84,18 @@ fun SettingsDialog(
     var fallbackLocal by remember { mutableStateOf(currentSettings.fallbackToLocalRunnerIfNoTermux) }
     var defaultEngine by remember { mutableStateOf(currentSettings.defaultExecutionEngine) }
     var autoOpenSheet by remember { mutableStateOf(currentSettings.autoOpenTerminalSheetOnRun) }
+
+    // Storage permission status state
+    var storageInfo by remember { mutableStateOf(StoragePermissionHelper.getStoragePermissionInfo(context)) }
+    var testResultText by remember { mutableStateOf<String?>(null) }
+    var customTestPath by remember { mutableStateOf("/sdcard/Movies/") }
+
+    // Permission launcher for Media (Android 13+) / Storage (Android 12-)
+    val mediaPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        storageInfo = StoragePermissionHelper.getStoragePermissionInfo(context)
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -306,6 +332,209 @@ fun SettingsDialog(
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Storage Access & Permissions Card for /sdcard/Movies/, /sdcard/Download/, etc.
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (storageInfo.hasAllFilesAccess) Color(0xFF064E3B).copy(alpha = 0.25f) else Color(0xFF1E293B)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Storage,
+                                contentDescription = null,
+                                tint = if (storageInfo.hasAllFilesAccess) Color(0xFF34D399) else Color(0xFF38BDF8),
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "สิทธิ์เข้าถึงพื้นที่จัดเก็บอุปกรณ์ (/sdcard/Movies)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "อนุญาตให้สคริปต์ Shell และแอพพลิเคชันเข้าถึงไฟล์ใน /sdcard/Movies/, /storage/movies/, /sdcard/Download/ เพื่อตรวจสอบคำบรรยาย วิดีโอ และประมวลผลข้อมูล",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Status All Files Access
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (storageInfo.hasAllFilesAccess)
+                                        "✅ All Files Access: ได้รับสิทธิ์แล้ว"
+                                    else
+                                        "⚠️ All Files Access: ยังไม่ได้รับสิทธิ์",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (storageInfo.hasAllFilesAccess) Color(0xFF34D399) else Color(0xFFFBBF24)
+                                )
+                                Text(
+                                    text = if (storageInfo.hasAllFilesAccess)
+                                        "สามารถอ่าน/เขียน /sdcard/Movies/ ได้โดยตรง"
+                                    else
+                                        "จำเป็นสำหรับสคริปต์ที่เรียกใช้ /sdcard/Movies/ หรือโฟลเดอร์ภายนอก",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    try {
+                                        context.startActivity(StoragePermissionHelper.createManageAllFilesIntent(context))
+                                    } catch (e: Exception) {
+                                        context.startActivity(StoragePermissionHelper.createAppDetailsSettingsIntent(context))
+                                    }
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (storageInfo.hasAllFilesAccess) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Text(
+                                    text = if (storageInfo.hasAllFilesAccess) "ตั้งค่าสิทธิ์" else "ขอสิทธิ์ All Files",
+                                    fontSize = 11.sp,
+                                    color = if (storageInfo.hasAllFilesAccess) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+
+                        if (!storageInfo.hasAllFilesAccess) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (storageInfo.hasMediaPermissions) "✅ Media Permissions: ได้รับแล้ว" else "ขอสิทธิ์เข้าถึง Media (Video/Audio)",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            mediaPermissionLauncher.launch(
+                                                arrayOf(
+                                                    Manifest.permission.READ_MEDIA_VIDEO,
+                                                    Manifest.permission.READ_MEDIA_AUDIO,
+                                                    Manifest.permission.READ_MEDIA_IMAGES
+                                                )
+                                            )
+                                        } else {
+                                            mediaPermissionLauncher.launch(
+                                                arrayOf(
+                                                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                                                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                                )
+                                            )
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("ขอสิทธิ์ Media", fontSize = 10.sp)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Path Access Tester
+                        Text("ทดสอบการเข้าถึงโฟลเดอร์ของอุปกรณ์:", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = customTestPath,
+                                onValueChange = { customTestPath = it },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp),
+                                textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Button(
+                                onClick = {
+                                    val status = StoragePermissionHelper.testDirectoryAccess(customTestPath.trim())
+                                    testResultText = buildString {
+                                        append(if (status.canRead) "✅ " else "❌ ")
+                                        append("${status.path}: ${status.statusMessage}\n")
+                                        if (status.sampleFiles.isNotEmpty()) {
+                                            append("ตัวอย่างไฟล์: ")
+                                            append(status.sampleFiles.joinToString(", "))
+                                        }
+                                    }
+                                    storageInfo = StoragePermissionHelper.getStoragePermissionInfo(context)
+                                },
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("ทดสอบ", fontSize = 11.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    val writeResult = StoragePermissionHelper.testWriteAndSaveFile(customTestPath.trim())
+                                    testResultText = buildString {
+                                        append(if (writeResult.success) "✅ [อ่าน/เขียน/แก้ไข/บันทึก]: " else "❌ [ข้อผิดพลาดการเขียน/บันทึก]: ")
+                                        append(writeResult.message)
+                                        append("\nโฟลเดอร์: ${writeResult.path}")
+                                    }
+                                    storageInfo = StoragePermissionHelper.getStoragePermissionInfo(context)
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("ทดสอบเขียน/บันทึกไฟล์ (R/W)", fontSize = 11.sp)
+                            }
+                        }
+
+                        testResultText?.let { result ->
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = result,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(8.dp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

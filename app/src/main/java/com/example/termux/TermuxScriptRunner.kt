@@ -270,6 +270,16 @@ class TermuxScriptRunner private constructor(private val context: Context) {
                 put("LANG", "en_US.UTF-8")
                 put("LC_ALL", "en_US.UTF-8")
                 put("PATH", "/system/bin:/system/xbin:/vendor/bin:/apex/com.android.runtime/bin")
+                // Device Shared Storage Paths (e.g. /sdcard/Movies/, /storage/emulated/0/Movies/)
+                put("EXTERNAL_STORAGE", "/sdcard")
+                put("SDCARD", "/sdcard")
+                put("STORAGE", "/storage/emulated/0")
+                put("MOVIES", "/sdcard/Movies")
+                put("DOWNLOADS", "/sdcard/Download")
+                put("DOCUMENTS", "/sdcard/Documents")
+                put("DCIM", "/sdcard/DCIM")
+                put("PICTURES", "/sdcard/Pictures")
+                put("MUSIC", "/sdcard/Music")
             }
 
             val process = pb.start()

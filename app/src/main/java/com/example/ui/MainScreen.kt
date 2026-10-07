@@ -76,6 +76,8 @@ import com.example.ui.components.LogHistorySheet
 import com.example.ui.components.ScriptCard
 import com.example.ui.components.ScriptEditorDialog
 import com.example.ui.components.SettingsDialog
+import com.example.ui.components.StoragePermissionBanner
+import com.example.utils.StoragePermissionHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -183,6 +185,7 @@ private fun ShortcutsDashboardTab(
     val showLiveDialog by viewModel.showLiveLogDialog.collectAsStateWithLifecycle()
     val allLogs by viewModel.allLogs.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val storagePermissionInfo by viewModel.storagePermissionInfo.collectAsStateWithLifecycle()
 
     var scriptToEdit by remember { mutableStateOf<TermuxScript?>(null) }
     var showEditorDialog by remember { mutableStateOf(false) }
@@ -286,6 +289,14 @@ private fun ShortcutsDashboardTab(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Storage Permission Alert Banner (if full access not granted)
+            item {
+                StoragePermissionBanner(
+                    storageInfo = storagePermissionInfo,
+                    onPermissionUpdated = { viewModel.refreshStoragePermissions() }
+                )
+            }
+
             // Hardware Status Card
             item {
                 Card(

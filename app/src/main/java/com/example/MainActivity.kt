@@ -37,7 +37,15 @@ class MainActivity : ComponentActivity() {
                     contract = ActivityResultContracts.RequestPermission()
                 ) { /* Handle grant if needed */ }
 
+                // Request Storage / Media Permissions on launch
+                val storagePermissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestMultiplePermissions()
+                ) {
+                    viewModel.refreshStoragePermissions()
+                }
+
                 LaunchedEffect(Unit) {
+                    // Check notifications
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         if (ContextCompat.checkSelfPermission(
                                 this@MainActivity,
@@ -47,6 +55,15 @@ class MainActivity : ComponentActivity() {
                             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         }
                     }
+
+                    // Check and prompt standard storage permissions if not granted
+                    val requiredPerms = com.example.utils.StoragePermissionHelper.getRequiredStoragePermissions()
+                    val ungrantedPerms = requiredPerms.filter {
+                        ContextCompat.checkSelfPermission(this@MainActivity, it) != PackageManager.PERMISSION_GRANTED
+                    }
+                    if (ungrantedPerms.isNotEmpty()) {
+                        storagePermissionLauncher.launch(ungrantedPerms.toTypedArray())
+                    }
                 }
 
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -54,6 +71,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshStoragePermissions()
     }
 
     override fun onNewIntent(intent: Intent) {
