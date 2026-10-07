@@ -1,0 +1,45 @@
+name: Build APK
+on:
+  workflow_dispatch:
+  push:
+    paths: ["*.zip"]
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Extract project zip
+        run: |
+          shopt -s nullglob
+          for z in *.zip; do echo "Extracting $z"; unzip -oq "$z" -d _src; done
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: 9.3.1
+      - name: Locate project
+        run: |
+          F=$(find . -name "settings.gradle*" -not -path "./.git/*" | head -n 1)
+          if [ -z "$F" ]; then echo "::error::settings.gradle not found. Upload the project zip to the repo root."; ls -la; exit 1; fi
+          echo "P=$(dirname "$F")" >> "$GITHUB_ENV"; echo "Project dir: $(dirname "$F")"
+      - name: Accept SDK licenses
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - name: Prepare
+        run: |
+          cd "$P"
+          [ -f debug.keystore ] || keytool -genkeypair -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          sed -i -E 's/versionCode = [0-9]+/versionCode = 1/; s/versionName = ".*"/versionName = "1.0"/; s/applicationId = ".*"/applicationId = "com.aistudio.runtermux.idlc"/' app/build.gradle.kts
+          if [ -n "$GEMINI_API_KEY" ]; then echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env; fi
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      - name: Build debug APK
+        run: |
+          cd "$P"
+          if [ -f gradlew ] && [ -f gradle/wrapper/gradle-wrapper.jar ]; then chmod +x gradlew; ./gradlew assembleDebug --no-daemon --stacktrace; else gradle assembleDebug --no-daemon --stacktrace; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: "**/build/outputs/apk/debug/*.apk"

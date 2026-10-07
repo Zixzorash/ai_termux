@@ -1,0 +1,6 @@
+{
+  "name": "Run Termux By IDOL_CHAMP",
+  "description": "แอพสำหรับรัน shortcuts ของ Termux (.sh) พร้อมระบบแจ้งเตือนเรียลไทม์ วิดเจ็ตหน้าจอหลัก และระบบสำรองข้อมูล",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

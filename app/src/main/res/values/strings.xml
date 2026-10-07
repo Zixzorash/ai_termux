@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Run Termux By IDOL_CHAMP</string>
+    <string name="widget_name">Termux Shortcuts Widget</string>
+    <string name="widget_description">วิดเจ็ตรันคำสั่ง Termux ด่วนบนหน้าจอหลัก</string>
+    <string name="notification_channel_name">สถานะการทำงาน Termux</string>
+    <string name="notification_channel_desc">แจ้งเตือนสถานะแบบเรียลไทม์เมื่อสคริปต์กำลังรันหรือทำงานเสร็จสิ้น</string>
+</resources>
